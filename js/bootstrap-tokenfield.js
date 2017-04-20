@@ -31,6 +31,42 @@
 
     'use strict';
 
+    /* UTILITY FUNCTIONS */
+
+    var now = Date.now || function () {
+        return new Date().getTime();
+    };
+
+    function debounce(func, wait, immediate) {
+        var timeout, args, context, timestamp, result;
+
+        var later = function () {
+            var last = now() - timestamp;
+            if (last < wait && last >= 0) {
+                timeout = setTimeout(later, wait - last);
+            } else {
+                timeout = null;
+                if (!immediate) {
+                    result = func.apply(context, args);
+                    if (!timeout) context = args = null;
+                }
+            }
+        };
+
+        return function () {
+            context = this;
+            args = arguments;
+            timestamp = now();
+            var callNow = immediate && !timeout;
+            if (!timeout) timeout = setTimeout(later, wait);
+            if (callNow) {
+                result = func.apply(context, args);
+                context = args = null;
+            }
+            return result;
+        };
+    };
+
     /* TOKENFIELD PUBLIC CLASS DEFINITION */
 
     var Tokenfield = function (element, options) {
@@ -209,7 +245,7 @@
             // Bail out if there if attributes are empty or event was defaultPrevented
             if (!createEvent.attrs || createEvent.isDefaultPrevented()) return;
 
-            var $token = $('<div class="token" />')
+            var $token = $('<div class="token" tabindex="-1" aria-selected="false" />')
                   .append('<span class="token-label" />')
                   .append('<a href="#" class="close" tabindex="-1" aria-label="Remove">&times;</a>')
                   .data('attrs', attrs);
@@ -254,7 +290,26 @@
                 .on('dblclick', function (e) {
                     if (_self._disabled || _self._readonly || !_self.options.allowEditing) return false;
                     _self.edit($token);
-                });
+                })
+                .on('keydown', function (e) {
+                    // c and x (to handle ctrl + c and ctrl +x)
+                    if (e.keyCode !== 67 && e.keyCode !== 88) return;
+                    if (!(e.ctrlKey || e.metaKey)) return;
+                    if (!$(document.activeElement).hasClass('token')) return;
+
+                    e.preventDefault();
+                    var activeTokens = _self.$wrapper.find('.active');
+                    _self.$copyHelper.val(_self.getTokensList(null, null, true)).focus().select();
+                    document.execCommand('copy');
+                    activeTokens.each(function (i) {
+                        _self.activate($(this), i !== 0, false, false);
+                    });
+                    if (e.keyCode === 88) _self.remove(e);
+                })
+                .on('keydown', $.proxy(this.keydown, this))
+                .on('keyup', $.proxy(this.keyup, this))
+                .on('focus', $.proxy(this.focus, this))
+                .on('blur', $.proxy(this.blur, this));
 
             $closeButton
                 .on('click', $.proxy(this.remove, this));
@@ -573,8 +628,12 @@
             this.focused = true;
             this.$wrapper.addClass('focus');
 
+            if ($(document.activeElement).hasClass('token')) {
+                $(document.activeElement).addClass('active').attr({ tabindex: 0, 'aria-selected': true });
+            }
+
             if (this.$input.is(document.activeElement)) {
-                this.$wrapper.find('.active').removeClass('active');
+                this.$wrapper.find('.active').removeClass('active').attr({ tabindex: -1, 'aria-selected': false });
                 this.$firstActiveToken = null;
 
                 if (this.options.showAutocompleteOnFocus) {
@@ -588,7 +647,7 @@
             this.$wrapper.removeClass('focus');
 
             if (!this.preventDeactivation && !this.$element.is(document.activeElement)) {
-                this.$wrapper.find('.active').removeClass('active');
+                this.$wrapper.find('.active').removeClass('active').attr({ tabindex: -1, 'aria-selected': false });
                 this.$firstActiveToken = null;
             }
 
@@ -682,10 +741,8 @@
 
             if (multi) add = true;
 
-            this.$copyHelper.focus();
-
             if (!add) {
-                this.$wrapper.find('.active').removeClass('active');
+                this.$wrapper.find('.active').removeClass('active').attr({ tabindex: -1, 'aria-selected': false });
                 if (remember) {
                     this.$firstActiveToken = $token;
                 } else {
@@ -705,9 +762,14 @@
                 });
             }
 
-            $token.addClass('active');
-            this.$copyHelper.val(this.getTokensList(null, null, true)).select();
+            $token.addClass('active').attr({ tabindex: 0, 'aria-selected': true });
+            this.focusToken($token);
         },
+
+        focusToken: debounce(function ($token) {
+            this.preventDeactivation = true;
+            $token.focus();
+        }, 10),
 
         activateAll: function () {
             var _self = this;
@@ -720,15 +782,13 @@
         deactivate: function ($token) {
             if (!$token) return;
 
-            $token.removeClass('active');
-            this.$copyHelper.val(this.getTokensList(null, null, true)).select();
+            $token.removeClass('active').attr({ tabindex: -1, 'aria-selected': false });
         },
 
         toggle: function ($token) {
             if (!$token) return;
-
-            $token.toggleClass('active');
-            this.$copyHelper.val(this.getTokensList(null, null, true)).select();
+            var active = !$token.hasClass('active');
+            $token.toggleClass('active').attr({ tabindex: active ? 0 : -1, 'aria-selected': active });
         },
 
         edit: function ($token) {
