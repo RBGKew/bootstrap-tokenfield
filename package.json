@@ -1,5 +1,5 @@
 {
-  "name": "bootstrap-tokenfield",
+  "name": "bootstrap-tokenfield-rbgkew",
   "title": "Bootstrap Tokenfield",
   "description": "Advanced tagging/tokenizing plugin for input fields with a focus on keyboard and copy-paste support.",
   "version": "0.12.1",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/sliptree/bootstrap-tokenfield.git"
+    "url": "git://github.com/RBGKew/bootstrap-tokenfield.git"
   },
   "keywords": [
     "jquery",
@@ -25,7 +25,7 @@
     "form"
   ],
   "bugs": {
-    "url": "https://github.com/sliptree/bootstrap-tokenfield/issues"
+    "url": "https://github.com/RBGKew/bootstrap-tokenfield/issues"
   },
   "license": "MIT",
   "scripts": {
